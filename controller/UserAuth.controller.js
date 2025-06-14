@@ -8,7 +8,9 @@ const sendmailAndsaveData = async (req, res) => {
   const { fullName, email, password } = req.body;
 
   const verificationToken = crypto.randomBytes(32).toString("hex");
-  const verificationLink = `http://localhost:5173/verify-email?token=${verificationToken}`;
+  // Use environment variable for frontend URL
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const verificationLink = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
   const transporter = nodemailer.createTransport({
     service: "Gmail",
@@ -26,11 +28,11 @@ const sendmailAndsaveData = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ message: "User already registered" });
     }
-    const hashedPassword = await bcrypt.hash(password, 10); 
+    const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
       fullName,
       email,
-      password : hashedPassword ,
+      password: hashedPassword,
       verificationToken,
     });
 
@@ -84,13 +86,11 @@ const OAuth = async (req, res) => {
     });
 
     await newUser.save();
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "OAuth registration successful",
-        user: newUser,
-      });
+    res.status(200).json({
+      success: true,
+      message: "OAuth registration successful",
+      user: newUser,
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -112,10 +112,18 @@ const OAuthLogin = async (req, res) => {
         .json({ message: "User Not Found Please Signup First", user: null });
     }
 
-    const token = jwt.sign({ id: user._id, email: user.email, role : user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-  // Send token in the cookie
-  res.cookie('token', token, { httpOnly: true, secure: true, maxAge: 3600000 });
+    // Send token in the cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 3600000,
+    });
 
     res
       .status(200)
@@ -178,7 +186,7 @@ const setupPassword = async (req, res) => {
 
 const signin = async (req, res) => {
   const { email, password } = req.body;
-  
+
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -200,14 +208,21 @@ const signin = async (req, res) => {
         .json({ success: false, message: "Invalid email or password" });
     }
 
-  // Create the JWT token
-  const token = jwt.sign({ id: user._id, email: user.email, role : user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    // Create the JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-  // Send token in the cookie
-  res.cookie('token', token, { httpOnly: true, secure: true, maxAge: 3600000 }); // 1 hour expiration
+    // Send token in the cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 3600000,
+    }); // 1 hour expiration
 
-    res.status(200).json({ success: true, user});
-
+    res.status(200).json({ success: true, user });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Failed to sign in" });
@@ -235,8 +250,6 @@ const userAddress = async (req, res) => {
   }
 };
 
-
-
 const getUserWithAddresses = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.session.userEmail }).populate(
@@ -252,12 +265,10 @@ const getUserWithAddresses = async (req, res) => {
     res.status(200).json({ success: true, user });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Failed to retrieve user with addresses",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve user with addresses",
+    });
   }
 };
 
@@ -286,22 +297,24 @@ const getAddressByEmail = async (req, res) => {
   const { email } = req.params;
 
   try {
-    const addressDocs = await Address.find({ email }).populate('addresses');
+    const addressDocs = await Address.find({ email }).populate("addresses");
 
     if (addressDocs.length === 0) {
-      return res.status(404).json({ success: false, message: "Address not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Address not found" });
     }
 
-    const addresses = addressDocs.map(doc => doc.addresses).flat();
-
+    const addresses = addressDocs.map((doc) => doc.addresses).flat();
 
     res.status(200).json({ success: true, addresses });
   } catch (error) {
     console.error("Error in getAddress:", error);
-    res.status(500).json({ success: false, message: "Failed to retrieve address" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to retrieve address" });
   }
 };
-
 
 const editUser = async (req, res) => {
   const { fullName, currentPassword, newPassword, profile } = req.body;
@@ -359,8 +372,8 @@ const updateUser = async (req, res) => {
   try {
     const updatedUser = await User.findOneAndUpdate(
       { email },
-      { fullName, role }, 
-      { new: true } 
+      { fullName, role },
+      { new: true }
     );
 
     if (!updatedUser) {
@@ -388,23 +401,28 @@ const getAllAddresses = async (req, res) => {
     const address = await Address.findOne({ email });
 
     if (!address) {
-      return res.status(404).json({ success: false, message: "Addresses not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Addresses not found" });
     }
 
     res.status(200).json({ success: true, addresses: address.addresses });
   } catch (error) {
     console.error("Error fetching addresses:", error);
-    res.status(500).json({ success: false, message: "Failed to retrieve addresses" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to retrieve addresses" });
   }
 };
-
 
 const updateAddress = async (req, res) => {
   try {
     const { email, address } = req.body;
 
     if (!email || !address || !address._id) {
-      return res.status(400).json({ success: false, message: 'Invalid request data' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid request data" });
     }
 
     const updatedAddress = await Address.findOneAndUpdate(
@@ -416,36 +434,35 @@ const updateAddress = async (req, res) => {
     if (updatedAddress) {
       res.status(200).json({ success: true, address: updatedAddress });
     } else {
-      res.status(404).json({ success: false, message: 'Address not found' });
+      res.status(404).json({ success: false, message: "Address not found" });
     }
   } catch (error) {
     console.error("Error updating address:", error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
-
 
 const deleteAddress = async (req, res) => {
   try {
-    const { email } = req.query; 
+    const { email } = req.query;
     const { addressId } = req.params;
     const result = await Address.updateOne(
-      { email: email, 'addresses._id': addressId }, 
-      { $pull: { addresses: { _id: addressId } } } 
+      { email: email, "addresses._id": addressId },
+      { $pull: { addresses: { _id: addressId } } }
     );
 
     if (result.modifiedCount > 0) {
-      res.status(200).json({ success: true, message: 'Address deleted successfully' });
+      res
+        .status(200)
+        .json({ success: true, message: "Address deleted successfully" });
     } else {
-      res.status(404).json({ success: false, message: 'Address not found' });
+      res.status(404).json({ success: false, message: "Address not found" });
     }
   } catch (error) {
     console.error("Error deleting address:", error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 
 module.exports = {
   deleteUser,
@@ -464,5 +481,5 @@ module.exports = {
   getAllAddresses,
   deleteAddress,
   updateAddress,
-  getAddressByEmail
+  getAddressByEmail,
 };

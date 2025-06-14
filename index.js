@@ -18,15 +18,32 @@ const fs = require("fs");
 
 const app = express();
 
-app.use(cors());
+// CORS configuration for production
+app.use(
+  cors({
+    origin:
+      process.env.NODE_ENV === "production"
+        ? ["https://your-frontend-domain.vercel.app"]
+        : ["http://localhost:5173", "http://localhost:3000"],
+    credentials: true,
+  })
+);
+
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(cookieParser());
-// MongoDB connection
+
+// MongoDB connection with better error handling
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => console.log("Database connected"))
-  .catch((error) => console.log(error));
+  .catch((error) => {
+    console.error("Database connection error:", error);
+    process.exit(1);
+  });
 
 // Define API routes
 app.use("/api/user", UserAuthRoute);
@@ -36,6 +53,12 @@ app.use("/api/cart", OrderRoute);
 app.use("/api/order", orderRoutes);
 app.use("/api", AdminDashboard);
 app.use("/api", wishlist);
+
+// Health check endpoint
+app.get("/", (req, res) => {
+  res.json({ message: "E-commerce API server is running", status: "OK" });
+});
+
 // Optional: Serve static files from the 'receipts' directory if needed
 app.use("/receipts", express.static(path.join(__dirname, "receipts")));
 
@@ -59,8 +82,16 @@ if (fs.existsSync(clientDistPath)) {
   });
 }
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Something went wrong!" });
+});
+
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+module.exports = app;
