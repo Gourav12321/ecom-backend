@@ -5,8 +5,6 @@ const { User } = require("../model/User.model");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const PDFDocument = require("pdfkit");
-const path = require("path");
-const fs = require("fs");
 
 const generatePdfReceipt = async (req, res) => {
   const { user, orderSummary, selectedAddress } = req.body;
@@ -25,7 +23,7 @@ const generatePdfReceipt = async (req, res) => {
       `attachment; filename="receipt_${orderSummary.orderId}.pdf"`
     );
 
-    // Pipe the PDF directly to the response instead of saving to filesystem
+    // Pipe the PDF directly to the response
     doc.pipe(res);
 
     // Add header
@@ -118,7 +116,6 @@ const addOrder = async (req, res) => {
 
 const getOrdersByUser = async (req, res) => {
   const { email } = req.params;
-
   try {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -220,12 +217,10 @@ const updateOrderDeliveryStatus = async (req, res) => {
       { orderStatus: status },
       { new: true }
     );
-    res
-      .status(200)
-      .json({
-        message: "Order status updated successfully",
-        order: updatedOrder,
-      });
+    res.status(200).json({
+      message: "Order status updated successfully",
+      order: updatedOrder,
+    });
   } catch (error) {
     console.error("Error updating order status:", error);
     res.status(500).json({ message: "Failed to update order status", error });
