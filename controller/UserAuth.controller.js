@@ -118,16 +118,21 @@ const OAuthLogin = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    // Send token in the cookie
+    // For separated frontend, return token in response body
+    // Also set cookie for backward compatibility
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: true,
-      maxAge: 3600000,
+      httpOnly: false, // Allow frontend to access
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 3600000, // 1 hour
     });
 
-    res
-      .status(200)
-      .json({ success: true, message: "OAuth Login successful", user });
+    res.status(200).json({
+      success: true,
+      message: "OAuth Login successful",
+      user,
+      token, // Return token in response for frontend to store
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -215,14 +220,20 @@ const signin = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    // Send token in the cookie
+    // For separated frontend, return token in response body
+    // Also set cookie for backward compatibility
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: true,
-      maxAge: 3600000,
-    }); // 1 hour expiration
+      httpOnly: false, // Allow frontend to access
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 3600000, // 1 hour
+    });
 
-    res.status(200).json({ success: true, user });
+    res.status(200).json({
+      success: true,
+      user,
+      token, // Return token in response for frontend to store
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Failed to sign in" });
@@ -464,6 +475,25 @@ const deleteAddress = async (req, res) => {
   }
 };
 
+const logout = async (req, res) => {
+  try {
+    // Clear the cookie
+    res.clearCookie("token", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Failed to logout" });
+  }
+};
+
 module.exports = {
   deleteUser,
   updateUser,
@@ -474,6 +504,7 @@ module.exports = {
   verifyEmail,
   setupPassword,
   signin,
+  logout, // Add logout to exports
   userAddress,
   getUserWithAddresses,
   OAuth,

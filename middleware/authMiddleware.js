@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { User } = require("../model/User.model");
 
-const adminMiddleware = async (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     // Try to get token from Authorization header first, then cookies
     let token = null;
@@ -19,7 +19,7 @@ const adminMiddleware = async (req, res, next) => {
 
     if (!token) {
       return res
-        .status(403)
+        .status(401)
         .json({ message: "Access denied. No token provided." });
     }
 
@@ -29,19 +29,19 @@ const adminMiddleware = async (req, res, next) => {
     // Find the user by the decoded token's email
     const user = await User.findOne({ email: decoded.email });
 
-    if (user && user.role === "Admin") {
-      // Token and user role verified, proceed to the next middleware
-      req.user = user; // Add user to request object for use in routes
-      next();
-    } else {
+    if (!user) {
       return res
-        .status(403)
-        .json({ message: "Access denied. Only admins can access this route." });
+        .status(401)
+        .json({ message: "Invalid token. User not found." });
     }
+
+    // Add user to request object for use in routes
+    req.user = user;
+    next();
   } catch (err) {
-    console.error("Error in adminMiddleware:", err);
+    console.error("Error in authMiddleware:", err);
     return res.status(401).json({ message: "Invalid token" });
   }
 };
 
-module.exports = adminMiddleware;
+module.exports = authMiddleware;
