@@ -11,13 +11,5 @@
       "src": "/(.*)",
       "dest": "/index.js"
     }
-  ],
-  "env": {
-    "MONGO_URI": "@mongo_uri",
-    "JWT_SECRET": "@jwt_secret",
-    "EMAIL_USER": "@email_user",
-    "EMAIL_PASS": "@email_pass",
-    "STRIPE_SECRET_KEY": "@stripe_secret_key",
-    "VITE_FIREBASE_API_KEY": "@vite_firebase_api_key"
-  }
+  ]
 }

@@ -12,9 +12,7 @@ const OrderRoute = require("./routes/Cart.routes");
 const orderRoutes = require("./routes/Orders.route");
 const AdminDashboard = require("./routes/AdminDashboard.route");
 const wishlist = require("./routes/wishlist.routes");
-const path = require("path");
 const cookieParser = require("cookie-parser");
-const fs = require("fs");
 
 const app = express();
 
@@ -56,42 +54,52 @@ app.use("/api", wishlist);
 
 // Health check endpoint
 app.get("/", (req, res) => {
-  res.json({ message: "E-commerce API server is running", status: "OK" });
+  res.json({
+    message: "E-commerce API server is running",
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    endpoints: [
+      "/api/user",
+      "/api/products",
+      "/api/categories",
+      "/api/cart",
+      "/api/order",
+    ],
+  });
 });
 
-// Optional: Serve static files from the 'receipts' directory if needed
-app.use("/receipts", express.static(path.join(__dirname, "receipts")));
-
-// Check if client dist folder exists before serving static files
-const clientDistPath = path.join(__dirname, "../client/dist");
-
-if (fs.existsSync(clientDistPath)) {
-  // Serve static files from the Vite build (client/dist folder)
-  app.use(express.static(clientDistPath));
-
-  // Serve the index.html for any unknown routes (SPA)
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(clientDistPath, "index.html"));
+// API-only fallback for unknown routes
+app.get("*", (req, res) => {
+  res.status(404).json({
+    message: "API endpoint not found",
+    availableEndpoints: [
+      "GET /",
+      "POST /api/user/verifyMail",
+      "GET /api/products",
+      "GET /api/categories",
+      "POST /api/cart/add",
+      "POST /api/order/generate-pdf",
+    ],
   });
-} else {
-  console.log("Client dist folder not found. Serving API only.");
-
-  // For API-only mode, return a simple message for unknown routes
-  app.get("*", (req, res) => {
-    res.json({ message: "API server running. Client not built yet." });
-  });
-}
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ message: "Something went wrong!" });
+  res.status(500).json({
+    message: "Something went wrong!",
+    error:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "Internal server error",
+  });
 });
 
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/`);
 });
 
 module.exports = app;
