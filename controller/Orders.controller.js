@@ -5,6 +5,12 @@ const { User } = require("../model/User.model");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const PDFDocument = require("pdfkit");
+const {
+  storage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} = require("../config/firebase-client");
 
 const generatePdfReceipt = async (req, res) => {
   const { user, orderSummary, selectedAddress } = req.body;
@@ -16,15 +22,9 @@ const generatePdfReceipt = async (req, res) => {
     const orderDate = order.createdAt;
     const doc = new PDFDocument({ size: "A4", margin: 50 });
 
-    // Set response headers for PDF download
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="receipt_${orderSummary.orderId}.pdf"`
-    );
-
-    // Pipe the PDF directly to the response
-    doc.pipe(res);
+    // Create a buffer to store the PDF
+    const buffers = [];
+    doc.on("data", buffers.push.bind(buffers));
 
     // Add header
     doc.fontSize(25).text("Order Receipt", { align: "center" });
@@ -82,13 +82,45 @@ const generatePdfReceipt = async (req, res) => {
       .fontSize(12)
       .text("Thank you for shopping with us!", { align: "center" });
 
-    // End the document - this will trigger the response to be sent
+    // End the document and wait for completion
     doc.end();
+
+    // Wait for PDF to be complete
+    await new Promise((resolve) => {
+      doc.on("end", resolve);
+    });
+
+    // Combine buffers into a single Buffer
+    const pdfBuffer = Buffer.concat(buffers);
+
+    // Upload to Firebase Storage using client SDK
+    const fileName = `receipts/receipt_${
+      orderSummary.orderId
+    }_${Date.now()}.pdf`;
+    const storageRef = ref(storage, fileName);
+
+    // Upload the PDF buffer to Firebase Storage
+    const uploadResult = await uploadBytes(storageRef, pdfBuffer, {
+      contentType: "application/pdf",
+      customMetadata: {
+        orderId: orderSummary.orderId,
+        userEmail: user.email,
+        generatedAt: new Date().toISOString(),
+      },
+    });
+
+    // Get the download URL
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+
+    // Return the PDF URL
+    res.status(200).json({
+      success: true,
+      pdfUrl: downloadURL,
+      message: "PDF receipt generated successfully",
+    });
   } catch (error) {
     console.error("Error generating PDF:", error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Error generating PDF" });
-    }
+    res.status(500).json({ error: "Error generating PDF" });
   }
 };
 
