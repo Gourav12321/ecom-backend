@@ -15,7 +15,6 @@ const wishlist = require("./routes/wishlist.routes");
 const cookieParser = require("cookie-parser");
 
 const app = express();
-
 // CORS configuration for production
 app.use(
   cors({
