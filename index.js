@@ -24,6 +24,7 @@ app.use(
         ? [
             "https://ecom-frontend-sand.vercel.app",
             "https://www.gouravdev.me",
+            "https://www.ecom.gouravdev.me",
             "https://ecom-frontend-lut3iz6wn-gourav-mauryas-projects.vercel.app/",
           ]
         : ["http://localhost:5173", "http://localhost:3000"],
